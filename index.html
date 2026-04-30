@@ -2,17 +2,18 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PHD Graduation: Final_Final_v2</title>
 <style>
 body { margin: 0; background: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Courier New', Courier, monospace; }
-canvas { border: 3px solid #00ff00; background: #fdfdfd; box-shadow: 0 0 20px rgba(0,255,0,0.2); }
-#ui { position: absolute; top: 20px; color: #00ff00; text-align: center; pointer-events: none; text-shadow: 1px 1px 2px #000; }
+canvas { border: 3px solid #00ff00; background: #fdfdfd; box-shadow: 0 0 20px rgba(0,255,0,0.3); max-width: 100%; height: auto; }
+#ui { position: absolute; top: 20px; color: #00ff00; text-align: center; pointer-events: none; text-shadow: 1px 1px 2px #000; z-index: 10; }
 </style>
 </head>
 <body>
 <div id="ui">
-<h1>GRADUATION_TRAINING_MONITOR</h1>
-<p>按【空格键】或【点击屏幕】跳跃，避开 Corner Cases！</p>
+<h1>TRAINING_MONITOR: v0.99</h1>
+<p>【空格】或【点击屏幕】跳跃，避开 Corner Cases！</p>
 </div>
 <canvas id="gameCanvas"></canvas>
 
@@ -22,28 +23,25 @@ const ctx = canvas.getContext('2d');
 canvas.width = 800;
 canvas.height = 400;
 
-// 加载头像图片
+// 图片加载逻辑
+let imgLoaded = false;
 const playerImg = new Image();
-playerImg.src = 'avatar.png'; // 请确保仓库里有这个文件
+playerImg.onload = () => { imgLoaded = true; };
+playerImg.onerror = () => { console.log("图片加载失败，使用占位框"); imgLoaded = false; };
+playerImg.src = 'avatar.png'; // 确保仓库里有 avatar.png
 
 let gameActive = true;
 let score = 0;
 let particles = [];
 
-// 玩家对象 (CV 博士)
 const player = {
-x: 80,
-y: 300,
-width: 60,
-height: 60,
-dy: 0,
-jumpForce: 13,
-gravity: 0.7,
-grounded: false,
-label: "PHD_Candidate: 0.99"
+x: 80, y: 300,
+width: 60, height: 60,
+dy: 0, jumpForce: 13,
+gravity: 0.7, grounded: false,
+label: "PHD_Candidate"
 };
 
-// 障碍物类型 (自动驾驶与学术梗)
 const obsTypes = [
 { text: "Reviewer 2", color: "#ff4757" },
 { text: "Corner Case", color: "#ffa502" },
@@ -56,11 +54,9 @@ function spawnObstacle() {
 if (gameActive) {
 const type = obsTypes[Math.floor(Math.random() * obsTypes.length)];
 obstacles.push({
-x: canvas.width,
-y: 300,
-width: 100,
-height: 50,
-speed: 5 + (score * 0.3),
+x: canvas.width, y: 300,
+width: 100, height: 50,
+speed: 5 + (score * 0.4),
 ...type
 });
 setTimeout(spawnObstacle, Math.random() * 1500 + 1000);
@@ -81,13 +77,10 @@ player.grounded = true;
 
 obstacles.forEach((obs, index) => {
 obs.x -= obs.speed;
-
-// 碰撞检测
-if (player.x < obs.x + obs.width - 10 && player.x + player.width - 10 > obs.x &&
+if (player.x < obs.x + obs.width - 15 && player.x + player.width - 15 > obs.x &&
 player.y < obs.y + obs.height && player.y + player.height > obs.y) {
 gameOver(obs.text);
 }
-
 if (obs.x + obs.width < 0) {
 obstacles.splice(index, 1);
 score++;
@@ -102,82 +95,93 @@ requestAnimationFrame(update);
 function draw() {
 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-// 画道路
+// 绘制道路
 ctx.fillStyle = '#333';
 ctx.fillRect(0, 350, canvas.width, 50);
-ctx.strokeStyle = 'white';
+ctx.strokeStyle = 'rgba(255,255,255,0.5)';
 ctx.setLineDash([15, 15]);
 ctx.strokeRect(0, 375, canvas.width, 1);
 ctx.setLineDash([]);
 
-// 画玩家头像与检测框
-if (playerImg.complete) {
+// 绘制玩家
+if (imgLoaded) {
 ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
+} else {
+ctx.fillStyle = "rgba(0, 255, 0, 0.2)";
+ctx.fillRect(player.x, player.y, player.width, player.height);
 }
+
+// 始终绘制 Bounding Box
 ctx.strokeStyle = '#00ff00';
 ctx.lineWidth = 2;
 ctx.strokeRect(player.x, player.y, player.width, player.height);
 ctx.fillStyle = '#00ff00';
-ctx.font = '12px Courier New';
-ctx.fillText(player.label, player.x, player.y - 5);
+ctx.font = 'bold 12px Courier New';
+ctx.fillText(`${player.label}: 0.99`, player.x, player.y - 8);
 
-// 画障碍物 (Red Bounding Box)
+// 绘制障碍物
 obstacles.forEach(obs => {
 ctx.strokeStyle = obs.color;
 ctx.lineWidth = 2;
 ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
 ctx.fillStyle = obs.color;
-ctx.fillText(`${obs.text}: 0.01`, obs.x, obs.y - 5);
+ctx.fillText(`${obs.text}: 0.01`, obs.x, obs.y - 8);
 });
 
-// 状态栏
+// UI 显示
 ctx.fillStyle = '#333';
-ctx.font = '16px Courier New';
-ctx.fillText(`Training Epochs: ${score} / 10`, 20, 30);
+ctx.font = 'bold 18px Courier New';
+ctx.fillText(`EPOCHS COMPLETED: ${score} / 10`, 20, 40);
 
-// 烟花粒子更新
+// 烟花粒子逻辑
 particles.forEach((p, i) => {
 p.x += p.vx; p.y += p.vy; p.alpha -= 0.01;
 ctx.fillStyle = `rgba(${p.color}, ${p.alpha})`;
-ctx.fillRect(p.x, p.y, 3, 3);
+ctx.fillRect(p.x, p.y, 4, 4);
 if (p.alpha <= 0) particles.splice(i, 1);
 });
 }
 
 function gameOver(reason) {
 gameActive = false;
-alert(`[ERROR] 模型崩溃!\n原因: ${reason}\n建议: 调低 Learning Rate 后重启训练。`);
+setTimeout(() => {
+alert(`[FATAL ERROR] 训练中断!\n原因: ${reason}\n\n别灰心，博士！重新运行脚本尝试收敛。`);
 location.reload();
+}, 100);
 }
 
 function win() {
 gameActive = false;
 createFireworks();
 setTimeout(() => {
-alert("🎉 [SUCCESS] 模型已收敛!\nPaper Accepted by CVPR!\n恭喜博士毕业！你是最牛的 AI Researcher!");
+alert("🎉 [SUCCESS] 验证集准确率达标!\nPaper Accepted by CVPR/ICCV!\n\n祝贺毕业！你是最棒的自动驾驶专家！");
 location.reload();
 }, 2000);
 }
 
 function createFireworks() {
-for(let i=0; i<100; i++) {
+for(let i=0; i<150; i++) {
 particles.push({
 x: canvas.width/2, y: canvas.height/2,
-vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10,
+vx: (Math.random()-0.5)*12, vy: (Math.random()-0.5)*12,
 alpha: 1, color: "0, 255, 0"
 });
 }
 }
 
-// 交互
-const handleJump = () => { if (player.grounded) { player.dy = -player.jumpForce; player.grounded = false; } };
+const handleJump = (e) => {
+if(e) e.preventDefault();
+if (player.grounded && gameActive) {
+player.dy = -player.jumpForce;
+player.grounded = false;
+}
+};
 window.addEventListener('keydown', (e) => { if (e.code === 'Space') handleJump(); });
-canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handleJump(); });
 canvas.addEventListener('mousedown', handleJump);
+canvas.addEventListener('touchstart', handleJump, {passive: false});
 
 spawnObstacle();
 update();
 </script>
 </body>
-</html> 
-
+</html>
