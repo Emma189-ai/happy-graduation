@@ -1,94 +1,136 @@
-// ... (保留之前的 Canvas 基础设置) ...
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>博士毕业大作战</title>
+<style>
+body { margin: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Arial', sans-serif; }
+canvas { border: 4px solid #fff; background: #f0f0f0; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+#ui { position: absolute; top: 20px; color: white; text-align: center; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="ui">
+<h1>博士毕业大作战</h1>
+<p>按【空格键】跳跃，躲避 Reviewer 2，拿到毕业证！</p>
+</div>
+<canvas id="gameCanvas"></canvas>
 
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = 800;
+canvas.height = 400;
+
+let gameActive = true;
+let score = 0;
+
+// 玩家对象
 const player = {
 x: 50,
 y: 300,
-width: 50,
-height: 50,
+width: 40,
+height: 40,
 dy: 0,
 jumpForce: 12,
 gravity: 0.6,
-grounded: false,
-label: "PHD_Candidate: Conf 0.99" // CV 梗：置信度
+grounded: false
 };
 
+// 障碍物（Reviewer 2 / Bug / 拒稿信）
 const obstacles = [];
-const obsTypes = [
-{ text: "Corner Case", color: "#ff4757" },
-{ text: "Overfitting", color: "#ffa502" },
-{ text: "OOM (Out of Memory)", color: "#ff6b81" },
-{ text: "Reviewer 2", color: "#2f3542" }
-];
+const certificates = [];
 
 function spawnObstacle() {
 if (gameActive) {
-const type = obsTypes[Math.floor(Math.random() * obsTypes.length)];
-obstacles.push({
-x: canvas.width,
-y: 310,
-width: 100,
-height: 40,
-speed: 6,
-...type
-});
-setTimeout(spawnObstacle, 1500);
+obstacles.push({ x: canvas.width, y: 310, width: 60, height: 40, speed: 5 + (score * 0.1) });
+setTimeout(spawnObstacle, Math.random() * 2000 + 1000);
 }
+}
+
+function update() {
+if (!gameActive) return;
+
+// 重力逻辑
+player.dy += player.gravity;
+player.y += player.dy;
+
+if (player.y + player.height > 350) {
+player.y = 350 - player.height;
+player.dy = 0;
+player.grounded = true;
+}
+
+// 移动障碍物
+obstacles.forEach((obs, index) => {
+obs.x -= obs.speed;
+// 碰撞检测
+if (player.x < obs.x + obs.width && player.x + player.width > obs.x &&
+player.y < obs.y + obs.height && player.y + player.height > obs.y) {
+gameOver();
+}
+if (obs.x + obs.width < 0) {
+obstacles.splice(index, 1);
+score++;
+if (score === 10) win(); // 拿到10分算毕业
+}
+});
+
+draw();
+requestAnimationFrame(update);
 }
 
 function draw() {
 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-// 画地面（做成柏油路，更有自动驾驶感）
-ctx.fillStyle = '#333';
+// 画地面
+ctx.fillStyle = '#666';
 ctx.fillRect(0, 350, canvas.width, 50);
-ctx.strokeStyle = 'white';
-ctx.setLineDash([20, 20]);
-ctx.strokeRect(0, 375, canvas.width, 1);
-ctx.setLineDash([]);
 
-// 画玩家：模仿检测框 (Bounding Box)
-ctx.strokeStyle = '#00ff00'; // 绿色框
-ctx.lineWidth = 3;
-ctx.strokeRect(player.x, player.y, player.width, player.height);
-ctx.fillStyle = '#00ff00';
-ctx.font = '12px Courier New';
-// 模拟标签文字
-ctx.fillText(player.label, player.x, player.y - 5);
+// 画玩家 (可以用朋友的头像代替这个方块)
+ctx.fillStyle = '#007bff';
+ctx.fillRect(player.x, player.y, player.width, player.height);
+ctx.fillStyle = 'white';
+ctx.fillText("PHD", player.x + 5, player.y + 25);
 
-// 画障碍物：也要做成检测框，但颜色是红色/橙色
+// 画障碍物
+ctx.fillStyle = '#ff4757';
 obstacles.forEach(obs => {
-ctx.strokeStyle = obs.color;
-ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
-ctx.fillStyle = obs.color;
-ctx.fillText(`${obs.text}: Conf 0.01`, obs.x, obs.y - 5);
-obs.x -= obs.speed;
-
-// 简易碰撞检测
-if (player.x < obs.x + obs.width && player.x + player.width > obs.x &&
-player.y < obs.y + obs.height && player.y + player.height > obs.y) {
-gameOver(obs.text);
-}
+ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+ctx.fillStyle = 'white';
+ctx.fillText("Reviewer 2", obs.x + 2, obs.y + 25);
+ctx.fillStyle = '#ff4757';
 });
 
-// 进度条：模拟模型收敛 (Convergence)
-ctx.fillStyle = '#eee';
-ctx.fillRect(200, 20, 400, 20);
-ctx.fillStyle = '#2ed573';
-ctx.fillRect(200, 20, (score / 10) * 400, 20);
+// 画分数
 ctx.fillStyle = '#333';
-ctx.fillText("Model Training Progress (Epochs)", 320, 35);
+ctx.font = '20px Arial';
+ctx.fillText(`已完成章节: ${score} / 10`, 20, 40);
 }
 
-function gameOver(reason) {
+function gameOver() {
 gameActive = false;
-alert(`模型训练失败！\n原因：${reason}\n别担心，调整下 Learning Rate 再试一次！`);
+alert("被 Reviewer 2 拒稿了！别灰心，重新再来。");
 location.reload();
 }
 
 function win() {
 gameActive = false;
-// 可以在这里调用你之前的烟花函数
-alert("Congratulations! 模型已收敛！\nPaper Accepted by CVPR/ICCV!\n博士，祝贺毕业！");
+// 这里可以触发你之前的烟花效果！
+alert("恭喜毕业！你是最棒的博士！");
+// 可以跳转到你准备的祝福页面或视频
 }
-// ...
+
+window.addEventListener('keydown', (e) => {
+if (e.code === 'Space' && player.grounded) {
+player.dy = -player.jumpForce;
+player.grounded = false;
+}
+});
+
+spawnObstacle();
+update();
+</script>
+</body>
+</html>
 
