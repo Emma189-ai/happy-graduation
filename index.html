@@ -1,0 +1,94 @@
+// ... (保留之前的 Canvas 基础设置) ...
+
+const player = {
+x: 50,
+y: 300,
+width: 50,
+height: 50,
+dy: 0,
+jumpForce: 12,
+gravity: 0.6,
+grounded: false,
+label: "PHD_Candidate: Conf 0.99" // CV 梗：置信度
+};
+
+const obstacles = [];
+const obsTypes = [
+{ text: "Corner Case", color: "#ff4757" },
+{ text: "Overfitting", color: "#ffa502" },
+{ text: "OOM (Out of Memory)", color: "#ff6b81" },
+{ text: "Reviewer 2", color: "#2f3542" }
+];
+
+function spawnObstacle() {
+if (gameActive) {
+const type = obsTypes[Math.floor(Math.random() * obsTypes.length)];
+obstacles.push({
+x: canvas.width,
+y: 310,
+width: 100,
+height: 40,
+speed: 6,
+...type
+});
+setTimeout(spawnObstacle, 1500);
+}
+}
+
+function draw() {
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+// 画地面（做成柏油路，更有自动驾驶感）
+ctx.fillStyle = '#333';
+ctx.fillRect(0, 350, canvas.width, 50);
+ctx.strokeStyle = 'white';
+ctx.setLineDash([20, 20]);
+ctx.strokeRect(0, 375, canvas.width, 1);
+ctx.setLineDash([]);
+
+// 画玩家：模仿检测框 (Bounding Box)
+ctx.strokeStyle = '#00ff00'; // 绿色框
+ctx.lineWidth = 3;
+ctx.strokeRect(player.x, player.y, player.width, player.height);
+ctx.fillStyle = '#00ff00';
+ctx.font = '12px Courier New';
+// 模拟标签文字
+ctx.fillText(player.label, player.x, player.y - 5);
+
+// 画障碍物：也要做成检测框，但颜色是红色/橙色
+obstacles.forEach(obs => {
+ctx.strokeStyle = obs.color;
+ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+ctx.fillStyle = obs.color;
+ctx.fillText(`${obs.text}: Conf 0.01`, obs.x, obs.y - 5);
+obs.x -= obs.speed;
+
+// 简易碰撞检测
+if (player.x < obs.x + obs.width && player.x + player.width > obs.x &&
+player.y < obs.y + obs.height && player.y + player.height > obs.y) {
+gameOver(obs.text);
+}
+});
+
+// 进度条：模拟模型收敛 (Convergence)
+ctx.fillStyle = '#eee';
+ctx.fillRect(200, 20, 400, 20);
+ctx.fillStyle = '#2ed573';
+ctx.fillRect(200, 20, (score / 10) * 400, 20);
+ctx.fillStyle = '#333';
+ctx.fillText("Model Training Progress (Epochs)", 320, 35);
+}
+
+function gameOver(reason) {
+gameActive = false;
+alert(`模型训练失败！\n原因：${reason}\n别担心，调整下 Learning Rate 再试一次！`);
+location.reload();
+}
+
+function win() {
+gameActive = false;
+// 可以在这里调用你之前的烟花函数
+alert("Congratulations! 模型已收敛！\nPaper Accepted by CVPR/ICCV!\n博士，祝贺毕业！");
+}
+// ...
+
