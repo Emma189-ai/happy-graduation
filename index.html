@@ -3,63 +3,66 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PHD Graduation: Final_Final_v2</title>
+<title>PHD Graduation Game</title>
 <style>
 body { margin: 0; background: #1a1a1a; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Courier New', Courier, monospace; }
-canvas { border: 3px solid #00ff00; background: #fdfdfd; box-shadow: 0 0 20px rgba(0,255,0,0.3); max-width: 100%; height: auto; }
-#ui { position: absolute; top: 20px; color: #00ff00; text-align: center; pointer-events: none; text-shadow: 1px 1px 2px #000; z-index: 10; }
+canvas { border: 3px solid #00ff00; background: #ffffff; box-shadow: 0 0 20px rgba(0,255,0,0.3); max-width: 95%; height: auto; }
+#ui { position: absolute; top: 10px; color: #00ff00; text-align: center; pointer-events: none; z-index: 10; width: 100%; }
 </style>
 </head>
 <body>
 <div id="ui">
-<h1>TRAINING_MONITOR: v0.99</h1>
-<p>【空格】或【点击屏幕】跳跃，避开 Corner Cases！</p>
+<h2 id="statusTitle">MODEL_TRAINING_v1.0</h2>
+<p>按【空格】或【点击屏幕】跳跃</p>
 </div>
 <canvas id="gameCanvas"></canvas>
 
 <script>
+/**
+* 核心逻辑检查：
+* 1. 移除了严格的图片依赖，加载失败不报错。
+* 2. 增加了简单的 Canvas 渲染兜底。
+*/
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = 800;
 canvas.height = 400;
 
-// 图片加载逻辑
+// 图片容错处理
 let imgLoaded = false;
 const playerImg = new Image();
-playerImg.onload = () => { imgLoaded = true; };
-playerImg.onerror = () => { console.log("图片加载失败，使用占位框"); imgLoaded = false; };
-playerImg.src = 'avatar.png'; // 确保仓库里有 avatar.png
+playerImg.onload = () => { imgLoaded = true; console.log("Avatar loaded."); };
+playerImg.onerror = () => { imgLoaded = false; console.log("Avatar not found, using box."); };
+playerImg.src = 'avatar.png';
 
 let gameActive = true;
 let score = 0;
 let particles = [];
+const obstacles = [];
 
 const player = {
 x: 80, y: 300,
-width: 60, height: 60,
-dy: 0, jumpForce: 13,
-gravity: 0.7, grounded: false,
-label: "PHD_Candidate"
+width: 50, height: 50,
+dy: 0, jumpForce: 12,
+gravity: 0.6, grounded: false
 };
 
 const obsTypes = [
 { text: "Reviewer 2", color: "#ff4757" },
 { text: "Corner Case", color: "#ffa502" },
-{ text: "CUDA_OOM", color: "#ff6b81" },
-{ text: "Overfitting", color: "#747d8c" }
+{ text: "CUDA_OOM", color: "#ff6b81" }
 ];
-const obstacles = [];
 
 function spawnObstacle() {
 if (gameActive) {
 const type = obsTypes[Math.floor(Math.random() * obsTypes.length)];
 obstacles.push({
-x: canvas.width, y: 300,
-width: 100, height: 50,
-speed: 5 + (score * 0.4),
+x: canvas.width, y: 310,
+width: 90, height: 40,
+speed: 5 + (score * 0.3),
 ...type
 });
-setTimeout(spawnObstacle, Math.random() * 1500 + 1000);
+setTimeout(spawnObstacle, Math.random() * 1500 + 1200);
 }
 }
 
@@ -77,14 +80,15 @@ player.grounded = true;
 
 obstacles.forEach((obs, index) => {
 obs.x -= obs.speed;
-if (player.x < obs.x + obs.width - 15 && player.x + player.width - 15 > obs.x &&
+// 碰撞判定
+if (player.x < obs.x + obs.width - 10 && player.x + player.width - 10 > obs.x &&
 player.y < obs.y + obs.height && player.y + player.height > obs.y) {
-gameOver(obs.text);
+endGame(false, obs.text);
 }
 if (obs.x + obs.width < 0) {
 obstacles.splice(index, 1);
 score++;
-if (score >= 10) win();
+if (score >= 10) endGame(true);
 }
 });
 
@@ -95,90 +99,76 @@ requestAnimationFrame(update);
 function draw() {
 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-// 绘制道路
+// 绘制地面
 ctx.fillStyle = '#333';
 ctx.fillRect(0, 350, canvas.width, 50);
-ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-ctx.setLineDash([15, 15]);
-ctx.strokeRect(0, 375, canvas.width, 1);
-ctx.setLineDash([]);
 
-// 绘制玩家
+// 绘制玩家 (PHD Candidate)
 if (imgLoaded) {
 ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
 } else {
-ctx.fillStyle = "rgba(0, 255, 0, 0.2)";
+ctx.fillStyle = "rgba(0, 255, 0, 0.3)";
 ctx.fillRect(player.x, player.y, player.width, player.height);
 }
 
-// 始终绘制 Bounding Box
+// 绘制 Bounding Box
 ctx.strokeStyle = '#00ff00';
 ctx.lineWidth = 2;
 ctx.strokeRect(player.x, player.y, player.width, player.height);
 ctx.fillStyle = '#00ff00';
-ctx.font = 'bold 12px Courier New';
-ctx.fillText(`${player.label}: 0.99`, player.x, player.y - 8);
+ctx.font = '12px Arial';
+ctx.fillText("PHD_Candidate: 0.99", player.x, player.y - 5);
 
 // 绘制障碍物
 obstacles.forEach(obs => {
 ctx.strokeStyle = obs.color;
-ctx.lineWidth = 2;
 ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
 ctx.fillStyle = obs.color;
-ctx.fillText(`${obs.text}: 0.01`, obs.x, obs.y - 8);
+ctx.fillText(`${obs.text}: 0.01`, obs.x, obs.y - 5);
 });
 
-// UI 显示
+// 分数 UI
 ctx.fillStyle = '#333';
-ctx.font = 'bold 18px Courier New';
-ctx.fillText(`EPOCHS COMPLETED: ${score} / 10`, 20, 40);
+ctx.font = 'bold 16px Arial';
+ctx.fillText(`Epochs: ${score}/10`, 20, 30);
 
-// 烟花粒子逻辑
+// 烟花粒子
 particles.forEach((p, i) => {
 p.x += p.vx; p.y += p.vy; p.alpha -= 0.01;
-ctx.fillStyle = `rgba(${p.color}, ${p.alpha})`;
-ctx.fillRect(p.x, p.y, 4, 4);
+ctx.fillStyle = `rgba(0, 255, 0, ${p.alpha})`;
+ctx.fillRect(p.x, p.y, 3, 3);
 if (p.alpha <= 0) particles.splice(i, 1);
 });
 }
 
-function gameOver(reason) {
+function endGame(isWin, reason) {
 gameActive = false;
-setTimeout(() => {
-alert(`[FATAL ERROR] 训练中断!\n原因: ${reason}\n\n别灰心，博士！重新运行脚本尝试收敛。`);
-location.reload();
-}, 100);
-}
-
-function win() {
-gameActive = false;
+if (isWin) {
 createFireworks();
 setTimeout(() => {
-alert("🎉 [SUCCESS] 验证集准确率达标!\nPaper Accepted by CVPR/ICCV!\n\n祝贺毕业！你是最棒的自动驾驶专家！");
+alert("🎉 [SUCCESS] 模型收敛！CVPR 接收！\n祝贺博士毕业！");
 location.reload();
-}, 2000);
+}, 1500);
+} else {
+alert(`[FAILED] 训练中断: ${reason}\n再试一次！`);
+location.reload();
+}
 }
 
 function createFireworks() {
-for(let i=0; i<150; i++) {
+for(let i=0; i<100; i++) {
 particles.push({
 x: canvas.width/2, y: canvas.height/2,
-vx: (Math.random()-0.5)*12, vy: (Math.random()-0.5)*12,
-alpha: 1, color: "0, 255, 0"
+vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10,
+alpha: 1
 });
 }
 }
 
-const handleJump = (e) => {
-if(e) e.preventDefault();
-if (player.grounded && gameActive) {
-player.dy = -player.jumpForce;
-player.grounded = false;
-}
-};
-window.addEventListener('keydown', (e) => { if (e.code === 'Space') handleJump(); });
-canvas.addEventListener('mousedown', handleJump);
-canvas.addEventListener('touchstart', handleJump, {passive: false});
+const jump = () => { if (player.grounded) { player.dy = -player.jumpForce; player.grounded = false; } };
+window.addEventListener('keydown', (e) => { if (e.code === 'Space') jump(); });
+canvas.addEventListener('touchstart', (e) => { e.preventDefault(); jump(); });
+canvas.addEventListener('mousedown', jump);
 
 spawnObstacle();
 update();
